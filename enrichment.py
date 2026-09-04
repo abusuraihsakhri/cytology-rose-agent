@@ -209,7 +209,7 @@ class Enrichment2NeedlePassTrackingWithAdequacyPredictionEngine:
         return res
 
 # =============================================================================
-# 5. IMPLEMENTATION
+# 5. IMPLEMENTATION (Needle Pass)
 # =============================================================================
 @dataclass
 class ImplementationEngineResult:
@@ -309,54 +309,10 @@ class Enrichment3CrushArtifactQuantificationAgent:
         return res
 
 # =============================================================================
-# 7. IMPLEMENTATION
+# 7. IMPLEMENTATION (Crush Artifact)
 # =============================================================================
-@dataclass
-class ImplementationEngineResult:
-    feature_name: str = "Implementation"
-    status: str = "OPTIMAL"
-    score: float = 0.0
-    metrics: Dict[str, Any] = field(default_factory=dict)
-    alerts: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
-    timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
-
-class ImplementationEngine:
-    """
-    Implementation: **File**: cytology_rose/crush_analyzer.py (new file)
-    """
-    def __init__(self, threshold: float = 1.0, config: Optional[Dict[str, Any]] = None):
-        self.threshold = threshold
-        self.config = config or {}
-        self.history: List[ImplementationEngineResult] = []
-
-    def evaluate(self, primary_value: float, secondary_value: float = 0.0, **kwargs) -> ImplementationEngineResult:
-        alerts = []
-        recs = []
-        status = "OPTIMAL"
-        score = round(float(primary_value), 3)
-
-        if primary_value > self.threshold * 2:
-            status = "CRITICAL_ALERT"
-            alerts.append(f"Implementation: Primary value {primary_value:.2f} breached critical threshold ({self.threshold * 2:.2f})")
-            recs.append("Initiate immediate protocol review and escalate to attending lead.")
-        elif primary_value > self.threshold:
-            status = "WARNING"
-            alerts.append(f"Implementation: Value {primary_value:.2f} exceeds baseline threshold ({self.threshold:.2f})")
-            recs.append("Increase monitoring frequency and perform secondary verification.")
-        else:
-            recs.append("Parameters nominal under standard operating bounds.")
-
-        res = ImplementationEngineResult(
-            feature_name="Implementation",
-            status=status,
-            score=score,
-            metrics={"primary": primary_value, "secondary": secondary_value, **kwargs},
-            alerts=alerts,
-            recommendations=recs
-        )
-        self.history.append(res)
-        return res
+# ImplementationEngine and ImplementationEngineResult are defined in section 5.
+# Reusing the same class for crush artifact implementation.
 
 # =============================================================================
 # 8. ENRICHMENT #4: CELL BLOCK ADEQUACY ASSESSMENT
@@ -416,22 +372,22 @@ class CytologyroseagentEnrichmentSuite:
     def __init__(self):
         self.overviewengine = OverviewEngine()
         self.enrichment1bethesdas = Enrichment1BethesdaSystemCategoryValidationAgent()
-        self.implementationengine = ImplementationEngine()
+        self.implementationengine_needle = ImplementationEngine()
         self.enrichment2needlepas = Enrichment2NeedlePassTrackingWithAdequacyPredictionEngine()
-        self.implementationengine = ImplementationEngine()
+        self.implementationengine_crush = ImplementationEngine()
         self.enrichment3crusharti = Enrichment3CrushArtifactQuantificationAgent()
-        self.implementationengine = ImplementationEngine()
+        self.implementationengine_cellblock = ImplementationEngine()
         self.enrichment4cellblock = Enrichment4CellBlockAdequacyAssessmentEngine()
 
     def execute_all(self, primary_val: float = 1.5, secondary_val: float = 0.5) -> Dict[str, Any]:
         results = {}
         results["OverviewEngine"] = self.overviewengine.evaluate(primary_val, secondary_val)
         results["Enrichment1BethesdaSystemCategoryValidationAgent"] = self.enrichment1bethesdas.evaluate(primary_val, secondary_val)
-        results["ImplementationEngine"] = self.implementationengine.evaluate(primary_val, secondary_val)
+        results["ImplementationEngine_needle"] = self.implementationengine_needle.evaluate(primary_val, secondary_val)
         results["Enrichment2NeedlePassTrackingWithAdequacyPredictionEngine"] = self.enrichment2needlepas.evaluate(primary_val, secondary_val)
-        results["ImplementationEngine"] = self.implementationengine.evaluate(primary_val, secondary_val)
+        results["ImplementationEngine_crush"] = self.implementationengine_crush.evaluate(primary_val, secondary_val)
         results["Enrichment3CrushArtifactQuantificationAgent"] = self.enrichment3crusharti.evaluate(primary_val, secondary_val)
-        results["ImplementationEngine"] = self.implementationengine.evaluate(primary_val, secondary_val)
+        results["ImplementationEngine_cellblock"] = self.implementationengine_cellblock.evaluate(primary_val, secondary_val)
         results["Enrichment4CellBlockAdequacyAssessmentEngine"] = self.enrichment4cellblock.evaluate(primary_val, secondary_val)
         return results
 

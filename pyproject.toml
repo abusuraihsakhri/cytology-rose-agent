@@ -20,7 +20,7 @@ requires-python = ">=3.9"
 dependencies = []
 
 [project.scripts]
-cytology-rose-engine = "cytology_rose_agent.cli:main"
+cytology-rose-engine = "cli:main"
 
 [project.urls]
 Homepage = "https://github.com/abusuraihsakhri/cytology-rose-engine"

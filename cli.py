@@ -80,10 +80,17 @@ def main(argv=None):
         return 0
 
     if args.command == "batch":
-        with open(args.input, mode="r", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
-            fieldnames = list(reader.fieldnames or [])
-            rows = list(reader)
+        try:
+            with open(args.input, mode="r", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                fieldnames = list(reader.fieldnames or [])
+                rows = list(reader)
+        except FileNotFoundError:
+            print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)
+            return 1
+        except PermissionError:
+            print(f"Error: Permission denied reading '{args.input}'.", file=sys.stderr)
+            return 1
 
         out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
         out_rows = []

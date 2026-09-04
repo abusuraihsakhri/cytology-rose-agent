@@ -3,9 +3,19 @@ Specialized Domain Worker Agents for Cytology Rose Agent.
 Domain: Digital Pathology & Histology Systems
 Standard: CAP Cancer Protocols / DICOM WSI PS3.16
 """
+import math
 import uuid
 from typing import Dict, Any, List, Optional
 from .models import SystemTaskPayload, AgentAlert, UrgencyLevel, SystemIntegrityStatus
+
+
+def _validate_metric(value: float, name: str) -> Optional[str]:
+    """Validate a metric value is finite and non-negative. Returns error message or None."""
+    if math.isnan(value) or math.isinf(value):
+        return f"{name} must be a finite number, got {value}"
+    if value < 0:
+        return f"{name} must be non-negative, got {value}"
+    return None
 
 
 class InvariantQCWorker:
@@ -14,6 +24,18 @@ class InvariantQCWorker:
     @classmethod
     def evaluate(cls, payload: SystemTaskPayload) -> List[AgentAlert]:
         alerts = []
+        # Validate inputs
+        err = _validate_metric(payload.primary_metric, "primary_metric")
+        if err:
+            alerts.append(AgentAlert(
+                alert_id=f"QC-{uuid.uuid4().hex[:6]}",
+                origin_worker="InvariantQCWorker",
+                urgency=UrgencyLevel.ELEVATED,
+                summary="Invalid Input Data",
+                technical_details=err,
+                actionable_remediation="Verify input data quality and resubmit.",
+            ))
+            return alerts
         if payload.primary_metric > 25.0:
             alerts.append(AgentAlert(
                 alert_id=f"QC-{uuid.uuid4().hex[:6]}",
@@ -32,6 +54,17 @@ class SafetyEscalationWorker:
     @classmethod
     def evaluate(cls, payload: SystemTaskPayload) -> List[AgentAlert]:
         alerts = []
+        err = _validate_metric(payload.secondary_metric, "secondary_metric")
+        if err:
+            alerts.append(AgentAlert(
+                alert_id=f"SAFE-{uuid.uuid4().hex[:6]}",
+                origin_worker="SafetyEscalationWorker",
+                urgency=UrgencyLevel.ELEVATED,
+                summary="Invalid Input Data",
+                technical_details=err,
+                actionable_remediation="Verify input data quality and resubmit.",
+            ))
+            return alerts
         if payload.is_critical_flag or payload.secondary_metric > 12.0:
             alerts.append(AgentAlert(
                 alert_id=f"SAFE-{uuid.uuid4().hex[:6]}",

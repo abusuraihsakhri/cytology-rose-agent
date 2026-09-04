@@ -3,9 +3,13 @@ Automated Pytest Test Suite for Cytology Rose Agent.
 Domain: Digital Pathology & Histology Systems
 Standard: CAP Cancer Protocols / DICOM WSI PS3.16
 """
+import os
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Ensure AUDIT_SECRET_KEY is set for tests
+os.environ.setdefault("AUDIT_SECRET_KEY", "test-audit-secret-key-for-unit-tests-only")
 
 import pytest
 from agents.base import PHIGuard, AuditLogger, SecurityException
@@ -21,6 +25,13 @@ def test_phi_guard_enforcement():
 
     # Clean text passes
     PHIGuard.assert_no_phi("Analytical assay specimen KEY-001 optimal")
+
+
+def test_phi_guard_redaction():
+    redacted = PHIGuard.redact_phi("Contact patient at 555-123-4567 or test@example.com")
+    assert "555-123-4567" not in redacted
+    assert "test@example.com" not in redacted
+    assert "[REDACTED_IDENTIFIER]" in redacted
 
 
 def test_specialized_workers():
@@ -40,6 +51,28 @@ def test_specialized_workers():
     p3 = SystemTaskPayload(task_id="T3", target_identifier="KEY-03", primary_metric=10.0, status_descriptor="DISCORDANT_ANOMALY")
     alerts3 = ProtocolConformanceWorker.evaluate(p3)
     assert len(alerts3) == 1
+
+
+def test_worker_input_validation():
+    """Test that workers handle invalid metric values gracefully."""
+    import math
+    # NaN primary metric
+    p_nan = SystemTaskPayload(task_id="T-NAN", target_identifier="KEY-NAN", primary_metric=float('nan'))
+    alerts_nan = InvariantQCWorker.evaluate(p_nan)
+    assert len(alerts_nan) == 1
+    assert "Invalid Input" in alerts_nan[0].summary
+
+    # Negative secondary metric
+    p_neg = SystemTaskPayload(task_id="T-NEG", target_identifier="KEY-NEG", primary_metric=10.0, secondary_metric=-5.0)
+    alerts_neg = SafetyEscalationWorker.evaluate(p_neg)
+    assert len(alerts_neg) == 1
+    assert "Invalid Input" in alerts_neg[0].summary
+
+    # Infinite primary metric
+    p_inf = SystemTaskPayload(task_id="T-INF", target_identifier="KEY-INF", primary_metric=float('inf'))
+    alerts_inf = InvariantQCWorker.evaluate(p_inf)
+    assert len(alerts_inf) == 1
+    assert "Invalid Input" in alerts_inf[0].summary
 
 
 def test_supervisor_consensus_and_audit():
@@ -63,3 +96,21 @@ def test_supervisor_consensus_and_audit():
     assert main(["audit", "--task-id", "CLI-TEST-01"]) == 0
     assert main(["chat", "Explain", "specifications"]) == 0
     assert main(["verify-audit"]) == 0
+
+
+def test_cli_batch_file_not_found():
+    """Test that batch command handles missing file gracefully."""
+    result = main(["batch", "-i", "nonexistent_file.csv"])
+    assert result == 1
+
+
+def test_phi_guard_on_structured_data():
+    """Test PHI guard catches various PHI patterns."""
+    with pytest.raises(SecurityException):
+        PHIGuard.assert_no_phi("SSN: 123-45-6789")
+
+    with pytest.raises(SecurityException):
+        PHIGuard.assert_no_phi("Patient Name: John Smith")
+
+    with pytest.raises(SecurityException):
+        PHIGuard.assert_no_phi("DOB: 01/15/1985")

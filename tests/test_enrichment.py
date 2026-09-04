@@ -11,9 +11,7 @@ from enrichment import (
     Enrichment1BethesdaSystemCategoryValidationAgent,
     ImplementationEngine,
     Enrichment2NeedlePassTrackingWithAdequacyPredictionEngine,
-    ImplementationEngine,
     Enrichment3CrushArtifactQuantificationAgent,
-    ImplementationEngine,
     Enrichment4CellBlockAdequacyAssessmentEngine,
     CytologyroseagentEnrichmentSuite,
     enrichment_suite,
@@ -33,3 +31,21 @@ def test_enrichment_threshold_escalation():
     for k, v in res.items():
         assert v.status in ["WARNING", "CRITICAL_ALERT"]
         assert len(v.alerts) > 0
+
+def test_enrichment_suite_unique_keys():
+    """Verify all enrichment suite results have unique keys (no overwrites)."""
+    suite = CytologyroseagentEnrichmentSuite()
+    res = suite.execute_all(primary_val=0.5, secondary_val=0.2)
+    # Should have 8 unique results (no duplicate keys overwriting each other)
+    assert len(res) == 8
+    expected_keys = {
+        "OverviewEngine",
+        "Enrichment1BethesdaSystemCategoryValidationAgent",
+        "ImplementationEngine_needle",
+        "Enrichment2NeedlePassTrackingWithAdequacyPredictionEngine",
+        "ImplementationEngine_crush",
+        "Enrichment3CrushArtifactQuantificationAgent",
+        "ImplementationEngine_cellblock",
+        "Enrichment4CellBlockAdequacyAssessmentEngine",
+    }
+    assert set(res.keys()) == expected_keys
