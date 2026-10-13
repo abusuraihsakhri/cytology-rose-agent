@@ -28,3 +28,20 @@ jobs:
           path: web
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Smoke test deployed public site
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..10}; do
+            if curl --fail --silent --show-error --location --max-time 15 "${PAGE_URL}" -o /tmp/cytology-rose-index.html \
+              && grep -q 'Cytology ROSE — Browser demonstration' /tmp/cytology-rose-index.html \
+              && curl --fail --silent --show-error --location --max-time 15 "${PAGE_URL}app.mjs" -o /tmp/cytology-rose-app.mjs \
+              && grep -q 'browser-demonstration' /tmp/cytology-rose-app.mjs; then
+              echo "Deployed HTML and JavaScript assets verified."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Public Pages smoke test did not pass." >&2
+          exit 1
