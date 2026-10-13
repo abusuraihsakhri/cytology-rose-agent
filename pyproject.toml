@@ -29,7 +29,7 @@ Homepage = "https://github.com/abusuraihsakhri/cytology-rose-agent"
 Repository = "https://github.com/abusuraihsakhri/cytology-rose-agent"
 
 [tool.setuptools]
-py-modules = ["cli", "cyto_rose", "cyto_rose_app", "cytology_rose_agent_app", "enrichment", "simulator"]
+py-modules = ["api_security", "cli", "cyto_rose", "cyto_rose_app", "cytology_rose_agent_app", "enrichment", "simulator"]
 
 [tool.setuptools.packages.find]
 include = ["agents", "agents.*", "cytology_rose_agent", "cytology_rose_agent.*"]
