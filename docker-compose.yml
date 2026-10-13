@@ -1,14 +1,12 @@
-version: '3.8'
-
 services:
   cytology-rose-engine:
     build: .
     container_name: cytology-rose-engine
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
-      - AUDIT_SECRET_KEY=${AUDIT_SECRET_KEY:-please-change-this-to-a-secure-random-key}
-      - MODEL_PROVIDER=mock
+      AUDIT_SECRET_KEY: "${AUDIT_SECRET_KEY:?Set a random AUDIT_SECRET_KEY before starting}"
+      CYTOLOGY_API_KEY: "${CYTOLOGY_API_KEY:?Set a random CYTOLOGY_API_KEY before starting}"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

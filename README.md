@@ -1,162 +1,74 @@
 # Cytology ROSE Agent
 
-> **Domain:** Digital Pathology & Quantitative Histopathology  
-> **Reference Guidelines & Standards:** `College of American Pathologists (CAP) Synoptic Protocols & DICOM WSI`
+Research prototype for organizing rapid on-site evaluation (ROSE) specimen parameters, experimental threshold flags, and simple audit records. The repository contains a Python CLI, a local FastAPI service, and a self-contained browser demonstration.
 
-<div align="center">
+> **Not a clinically validated medical device.** The numerical boundaries (primary >25 and secondary >12), keyword checks, Bethesda heuristics, and needle-pass recommendations are experimental software logic, not established cytopathology adequacy criteria. They must not be used for diagnosis, specimen acceptance, procedural decisions, or patient management.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.11-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+## Features
 
-</div>
+- Python command-line evaluation, CSV batch processing, and local API.
+- Three deterministic Python workers: primary-metric threshold, secondary-metric/priority flag, and status-descriptor keyword review.
+- In-memory HMAC-SHA256 audit ledger with per-entry signature and chain-link verification.
+- A static, JavaScript-based browser demonstration under `web/` using the same basic thresholds, with JSON export.
+- Legacy ROSE modules and experimental Bethesda, needle-pass, and crush-artifact utilities. Their heuristics are not clinically validated.
+- Supervisory chat currently uses a deterministic mock response, **not** a connected language-model service.
 
----
+## Browser demonstration
 
-## 📖 What It Does
+The source lives in [web/index.html](web/index.html). When GitHub Pages is enabled, the Pages workflow publishes `web/`. Without Pages, run a local static server:
 
-**Cytology ROSE Agent** is an advanced analytical and computational platform implementing Rapid On-Site Evaluation (ROSE) Cytology Adequacy & Smear QC. It provides multi-agent consensus evaluation of cytopathology specimens with cryptographic audit trails and zero-PHI outbound protection.
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### 🔬 Core Algorithmic & Evaluation Engines
-
-- **`Severity`** — Enumeration for severity levels (INFO, ADVISORY, WARNING, CRITICAL_ACTION_REQUIRED).
-- **`DomainKnowledgeRegistry`**: Enterprise domain rules, guideline matrices, and evidence benchmarks.
-- **`AgentAlert`** — Structured alert model with urgency, technical details, and remediation.
-- **`CellularityAssessmentAgent`**: Specialized Sub-Agent 1 for cytology-rose-agent
-- **`AdequacyScorerAgent`**: Specialized Sub-Agent 2 for cytology-rose-agent
-- **`SlideSmearQCAgent`**: Specialized Sub-Agent 3 for cytology-rose-agent
-
-### 🏗️ Enterprise Agent Architecture
-
-- **`InvariantQCWorker`**: Primary mathematical & protocol boundary auditor.
-- **`SafetyEscalationWorker`**: Safety boundary, toxicity & emergency interlock worker.
-- **`ProtocolConformanceWorker`**: Spec conformance, anomaly triage & discordance checker.
-- **`SystemSupervisor`**: Master orchestrator coordinating multi-worker evaluations.
-
----
-
-## 💻 CLI Quickstart & Usage
-
-### Installation
 ```bash
-pip install -e .
+python -m http.server 8080 --directory web
 ```
 
-### 1. Run Single Task Evaluation
-```bash
-python cli.py audit --task-id TASK-001 --target KEY-01 --primary 28.5 --secondary 14.2 --critical --status DISCORDANT
-```
+Then open `http://127.0.0.1:8080/`. Calculations occur locally in JavaScript; no backend, Python runtime, Pyodide, account, or remote inference is required. Results are **not signed** and are cleared on reload. The browser demonstration is intentionally separate from the authenticated Python API.
 
-### 2. Query Supervisory Chat
-```bash
-python cli.py chat "What is the system status?"
-```
+## Install and use Python
 
-### 3. Batch Process CSV Records
+Requires Python 3.10 or newer.
+
 ```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[server,test]"
+export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+python cli.py audit --task-id TASK-001 --target SPECIMEN-01 --primary 28.5 --secondary 14.2
 python cli.py batch -i sample.csv -o results.csv
-```
-
-### 4. Verify Audit Trail Integrity
-```bash
 python cli.py verify-audit
+python -m pytest -v
 ```
 
-### 5. Launch FastAPI REST Server
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` and set environment variables using `$env:AUDIT_SECRET_KEY = ...`.
+
+The primary CLI accepts CSV columns `task_id`, `target_identifier`, `primary_metric`, `secondary_metric`, `status_descriptor`, and `is_critical_flag`. It also recognizes the legacy names in `sample.csv`, including `case_id`, `metric_primary`, `metric_secondary`, and `is_stat`. Boolean values such as `True` and `False` are parsed explicitly. Validation errors return a nonzero exit code instead of silently applying numeric defaults.
+
+## Local API and containers
+
+The primary FastAPI application is `agents.api:app`. Start it locally:
+
 ```bash
 python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `task_id` | Unique task/case identifier | Required |
-| `target_identifier` | Entity or specimen target key | Required |
-| `primary_metric` | Primary domain measurement (float) | Required |
-| `secondary_metric` | Secondary kinetic/confidence score | Optional |
-| `status_descriptor` | Status code or phenotype descriptor | Optional |
-| `is_critical_flag` | Emergency escalation trigger | Optional |
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active regex inspection blocking SSNs, MRNs, phone numbers, emails, DOBs, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
-### Security Configuration
-
-The `AUDIT_SECRET_KEY` environment variable **must** be set to a secure random value. The application will refuse to start without it:
+`GET /health` is public for service checks. All other endpoints (`/api/audit`, `/api/chat`, `/api/audit/logs`, `/metrics`) require an `X-API-Key` header when `CYTOLOGY_API_KEY` is configured. Without an API key, they are accessible only from loopback. Set a strong `CYTOLOGY_API_KEY` for any container or proxy deployment.
 
 ```bash
-export AUDIT_SECRET_KEY="your-secure-random-key-here"
+export CYTOLOGY_API_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+docker compose up --build
 ```
 
----
+Compose requires **both** environment variables and binds port 8000 to the host loopback interface. API access control is not a replacement for TLS, access management, or deployment-specific security review.
 
-## 🧪 Testing & Verification
+## Privacy and audit limitations
 
-Run the automated test suite:
+**Use synthetic identifiers and non-patient data only.** The regex-based identifier guard is incomplete and is not a PHI anonymization or HIPAA compliance guarantee. The Python API retains dossiers and audit records in process memory; batch CSV output is written to the specified local path. Audit signatures are verified in memory and are not persisted or anchored to external storage, so restart destroys the ledger and terminal-entry deletion is not independently detectable. The browser demonstration does not persist or transmit entries, and its JSON export is downloaded to your device.
 
-```bash
-pytest -v
-```
+## Verification and technology
 
-Execute high-throughput batch simulation benchmarks:
+Run `python -m pytest -v` for Python tests and `node --test web/test.mjs` for JavaScript behavior; `node --check web/app.mjs` checks JavaScript syntax. GitHub Actions runs Python 3.10–3.12 checks and a static Pages deployment workflow. Modern browsers supporting JavaScript modules are required for the browser demonstration.
 
-```bash
-python simulator.py 1000
-```
+Technology: Python, Pydantic 2, FastAPI/uvicorn (optional server), pytest, JavaScript modules, and GitHub Actions. No browser Python runtime is used because this small standalone demonstration needs none.
 
----
+## License
 
-## 🐳 Container Deployment
-
-### Docker
-```bash
-docker build -t cytology-rose-agent .
-docker run -p 8000:8000 -e AUDIT_SECRET_KEY="your-secure-key" cytology-rose-agent
-```
-
-### Docker Compose
-```bash
-AUDIT_SECRET_KEY="your-secure-key" docker-compose up
-```
-
----
-
-## 📁 Project Structure
-
-```
-cytology-rose-agent/
-├── agents/                  # Enterprise agent modules
-│   ├── api.py              # FastAPI REST server
-│   ├── base.py             # Security, PHI guard, audit trail
-│   ├── models.py           # Pydantic data models
-│   ├── supervisor.py       # Master orchestrator
-│   ├── workers.py          # Specialized domain workers
-│   ├── llm_factory.py      # LLM provider factory
-│   ├── metrics.py          # Prometheus metrics
-│   ├── learning.py         # Bayesian calibration engine
-│   └── streamer.py         # WebSocket telemetry
-├── tests/                  # Pytest test suite
-├── web/                    # Operations console (HTML)
-├── cli.py                  # Command-line interface
-├── cyto_rose.py            # Legacy CLI & coordinator
-├── enrichment.py           # Enrichment feature modules
-├── simulator.py            # High-throughput simulator
-├── pyproject.toml          # Project configuration
-├── Dockerfile              # Container build
-└── docker-compose.yml      # Multi-container orchestration
-```
+[MIT](LICENSE).
