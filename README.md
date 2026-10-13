@@ -1,5 +1,7 @@
 # Cytology ROSE Agent
 
+### [Open the Live Application →](https://abusuraihsakhri.github.io/cytology-rose-agent/)
+
 Research prototype for organizing rapid on-site evaluation (ROSE) specimen parameters, experimental threshold flags, and simple audit records. The repository contains a Python CLI, a local FastAPI service, and a self-contained browser demonstration.
 
 > **Not a clinically validated medical device.** The numerical boundaries (primary >25 and secondary >12), keyword checks, Bethesda heuristics, and needle-pass recommendations are experimental software logic, not established cytopathology adequacy criteria. They must not be used for diagnosis, specimen acceptance, procedural decisions, or patient management.
