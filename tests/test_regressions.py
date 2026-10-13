@@ -1,7 +1,7 @@
 """Regression tests for audit integrity, CSV processing, and API exposure."""
 import csv
 
-from agents.base import AuditTrail, SecurityException
+from agents.base import AuditTrail
 from cli import main
 
 
@@ -76,4 +76,4 @@ def test_api_restricts_sensitive_endpoints(monkeypatch):
         "task_id": "T-1", "target_identifier": "SPECIMEN-1",
         "primary_metric": 10, "attributes": {"contact": "someone@example.com"},
     }
-    assert client.post("/api/audit", json=payload, headers=headers).status_code == 400
+    assert client.post("/api/audit", json=payload, headers=headers).status_code == 422
