@@ -77,3 +77,11 @@ def test_api_restricts_sensitive_endpoints(monkeypatch):
         "primary_metric": 10, "attributes": {"contact": "someone@example.com"},
     }
     assert client.post("/api/audit", json=payload, headers=headers).status_code == 422
+
+    for invalid in (-1, "NaN", "Infinity"):
+        response = client.post(
+            "/api/audit",
+            json={"task_id": "T-2", "target_identifier": "DEMO-02", "primary_metric": invalid},
+            headers=headers,
+        )
+        assert response.status_code == 422
