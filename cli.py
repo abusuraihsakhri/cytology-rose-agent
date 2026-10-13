@@ -7,7 +7,7 @@ import json
 import sys
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
-from agents.base import AuditLogger
+from agents.base import AuditLogger, SecurityException
 
 supervisor = SystemSupervisor(model_provider="mock")
 
@@ -135,7 +135,7 @@ def main(argv=None):
                     )),
                 )
                 dossier = supervisor.process_task(payload)
-            except (ValueError, TypeError) as exc:
+            except (ValueError, TypeError, SecurityException) as exc:
                 print(f"CSV row {index}: {exc}", file=sys.stderr)
                 return 1
             row_dict = dict(row)
