@@ -3,6 +3,7 @@ Crush Artifact Quantification Agent for Cytology ROSE Agent.
 Detect and quantify crush artifact in FNA smears.
 """
 from dataclasses import dataclass
+import math
 from typing import Dict, Optional
 
 
@@ -22,8 +23,15 @@ class CrushArtifactAnalyzer:
     def quantify_crush_artifact(self, image_metrics: dict) -> dict:
         """Quantify crush artifact percentage from image analysis metrics."""
         crushed_cells = image_metrics.get("crushed_cells", 0)
-        total_cells = image_metrics.get("total_cells", 1)
-        crush_pct = (crushed_cells / total_cells * 100) if total_cells > 0 else 0
+        total_cells = image_metrics.get("total_cells", 0)
+        for name, count in (("crushed_cells", crushed_cells), ("total_cells", total_cells)):
+            if isinstance(count, bool) or not isinstance(count, (int, float)):
+                raise ValueError(f"{name} must be a non-negative count")
+            if not math.isfinite(count) or count < 0 or int(count) != count:
+                raise ValueError(f"{name} must be a finite non-negative integer")
+        if total_cells == 0 or crushed_cells > total_cells:
+            raise ValueError("total_cells must be positive and at least crushed_cells")
+        crush_pct = crushed_cells / total_cells * 100
 
         if crush_pct < 5:
             severity = "Mild"
@@ -51,7 +59,7 @@ class CrushArtifactAnalyzer:
         """Comprehensive smear quality assessment."""
         issues = []
 
-        if smear_data.get("crush_pct", 0) > 20:
+        if smear_data.get("crush_pct", 0) >= 20:
             issues.append("Severe crush artifact")
         if smear_data.get("air_drying_artifact", False):
             issues.append("Air-drying artifact present")
