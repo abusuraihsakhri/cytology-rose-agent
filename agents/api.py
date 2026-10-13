@@ -1,10 +1,10 @@
 """
 FastAPI REST API Server for Cytology Rose Agent.
 """
-import hmac
-import os
+import math
 from typing import Dict, Any, List
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Depends
+from api_security import require_api_access
 from pydantic import BaseModel
 from .base import AuditLogger, PHIGuard, SecurityException
 from .models import SystemTaskPayload, ConsensusDossier
@@ -13,18 +13,6 @@ from .supervisor import SystemSupervisor
 supervisor = SystemSupervisor(model_provider="mock")
 
 
-def require_api_access(request: Request):
-    """Require an API key for non-loopback clients; protect all configured deployments."""
-    expected = os.getenv("CYTOLOGY_API_KEY")
-    if expected:
-        provided = request.headers.get("x-api-key", "")
-        if not hmac.compare_digest(provided, expected):
-            raise HTTPException(status_code=401, detail="Invalid or missing API key")
-    elif not request.client or request.client.host not in ("127.0.0.1", "::1"):
-        raise HTTPException(
-            status_code=503,
-            detail="Remote API access disabled: configure CYTOLOGY_API_KEY",
-        )
 
 app = FastAPI(
     title="Cytology Rose Agent API",
@@ -53,6 +41,9 @@ def metrics():
 
 @app.post("/api/audit", dependencies=[Depends(require_api_access)])
 def api_audit(payload: SystemTaskPayload):
+    if not all(math.isfinite(value) and value >= 0 for value in
+               (payload.primary_metric, payload.secondary_metric)):
+        raise HTTPException(status_code=422, detail="Metrics must be finite and non-negative")
     try:
         dossier = supervisor.process_task(payload)
         return dossier.to_dict()

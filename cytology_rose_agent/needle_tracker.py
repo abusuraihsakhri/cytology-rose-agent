@@ -3,6 +3,7 @@ Needle Pass Tracking with Adequacy Prediction for Cytology ROSE Agent.
 Track FNA needle passes in real-time and predict specimen adequacy.
 """
 import datetime
+import math
 from dataclasses import dataclass
 from typing import List, Dict
 
@@ -34,11 +35,16 @@ class NeedlePassTracker:
         self.pass_history: Dict[str, List[NeedlePassRecord]] = {}
 
     def track_pass(self, case_id: str, pass_data: dict) -> NeedlePassRecord:
+        if not str(case_id).strip():
+            raise ValueError("case_id is required")
+        score = float(pass_data.get("cellularity_score", 0))
+        if not math.isfinite(score) or score < 0:
+            raise ValueError("cellularity_score must be finite and non-negative")
         passes = self.pass_history.get(case_id, [])
         record = NeedlePassRecord(
             case_id=case_id,
             pass_number=len(passes) + 1,
-            cellularity_score=pass_data.get("cellularity_score", 0),
+            cellularity_score=score,
             needle_gauge=pass_data.get("needle_gauge", 25),
             technique=pass_data.get("technique", "standard"),
             timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -55,7 +61,10 @@ class NeedlePassTracker:
         total_passes = len(passes)
         thresholds = self.ORGAN_THRESHOLDS.get(target_organ, self.ORGAN_THRESHOLDS["thyroid"])
 
-        if current_cellularity >= thresholds["min_cellularity"]:
+        # Both configuration conditions are required; high scores on the
+        # first pass do not satisfy the configured minimum pass count.
+        if (current_cellularity >= thresholds["min_cellularity"]
+                and total_passes >= thresholds["min_passes"]):
             return {
                 "adequate": True,
                 "passes_completed": total_passes,
@@ -63,7 +72,6 @@ class NeedlePassTracker:
                 "recommendation": "Specimen adequate for evaluation",
             }
 
-        remaining = max(0, int((thresholds["min_cellularity"] - current_cellularity) / 2))
         if total_passes >= thresholds["max_passes"]:
             return {
                 "adequate": False,
@@ -73,13 +81,21 @@ class NeedlePassTracker:
                 "at_max_passes": True,
             }
 
+        remaining_by_count = max(0, thresholds["min_passes"] - total_passes)
+        remaining_by_score = math.ceil(
+            max(0.0, thresholds["min_cellularity"] - current_cellularity) / 2
+        )
+        remaining = min(
+            thresholds["max_passes"] - total_passes,
+            max(1, remaining_by_count, remaining_by_score),
+        )
         return {
             "adequate": False,
             "passes_completed": total_passes,
             "passes_needed": remaining,
             "current_cellularity": round(current_cellularity, 1),
             "threshold": thresholds["min_cellularity"],
-            "recommendation": f"Request {remaining} additional passes",
+            "recommendation": f"Experimental estimate: {remaining} further passes; defer to local protocol",
         }
 
     def get_pass_summary(self, case_id: str) -> dict:

@@ -176,7 +176,8 @@ coordinator = ROSECoordinator()
 
 def create_app():
     try:
-        from fastapi import FastAPI
+        from fastapi import FastAPI, Depends
+        from api_security import require_api_access
         from pydantic import BaseModel
 
         app = FastAPI(
@@ -199,11 +200,11 @@ def create_app():
         def health():
             return {"status": "HEALTHY", "system": "cytology-rose-agent", "version": "1.0.0"}
 
-        @app.post("/api/audit")
+        @app.post("/api/audit", dependencies=[Depends(require_api_access)])
         def api_audit(req: AuditRequest):
             return coordinator.audit_case(req.model_dump())
 
-        @app.post("/api/chat")
+        @app.post("/api/chat", dependencies=[Depends(require_api_access)])
         def api_chat(req: ChatRequest):
             return {"response": coordinator.query_assistant(req.query)}
 
